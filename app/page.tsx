@@ -253,18 +253,18 @@ export default function HybridCVPage() {
               <div>
                 <p className="eyebrow">CURRICULUM VITAE</p>
                 <h1>Chelsea Kelling</h1>
-                <p className="cv-role">Lead Product Designer &amp; Systems Catalyst</p>
+                <p className="cv-role">Senior Product Designer</p>
               </div>
               <a className="cv-contact" href="mailto:c.lou.kelling@gmail.com">Get in touch <span aria-hidden="true">↗</span></a>
             </div>
 
             <div className="cv-summary">
               <p>
-                Product designer with 9+ years turning complex enterprise workflows into durable systems,
-                rituals, and high-density products. Focused on UX architecture, design systems, AI-native
-                prototyping, and servicing UX.
+                Product designer with 9+ years of experience and a background in psychology. At my best in
+                small teams where I pair with engineers, test with real users, and shape the product directly.
+                Focused on design systems, onboarding, and AI-assisted prototyping.
               </p>
-              <span>TAMPERE / HELSINKI, FINLAND · REMOTE</span>
+              <span>TAMPERE, FINLAND · REMOTE</span>
             </div>
 
             <div className="cv-sections">
@@ -272,37 +272,78 @@ export default function HybridCVPage() {
                 <h2>Experience</h2>
                 <article className="cv-entry">
                   <div className="cv-entry-meta">
+                    <h3>Senior Product Designer</h3>
+                    <span>2023 — Present</span>
+                  </div>
+                  <p className="cv-organization">GoTo (Miradore acquisition)</p>
+                  <p>
+                    Designing new features from first concept to shipped. Leading native MDM enrollment flows,
+                    a large cross-product initiative, while integrating AI and expanding the design system.
+                  </p>
+                </article>
+                <article className="cv-entry">
+                  <div className="cv-entry-meta">
                     <h3>Lead UX Designer</h3>
-                    <span>2019 — 2024</span>
+                    <span>2021 — 2022</span>
                   </div>
                   <p className="cv-organization">Miradore</p>
                   <p>
-                    Built the UX function and design system from scratch. Scaled cross-department design
-                    rituals and product maturity across the organization.
+                    First designer in the company. Built UX practices, research frameworks, and design
+                    processes from the ground up, and optimized onboarding for product-led growth.
                   </p>
                 </article>
-              </section>
-
-              <section className="cv-section">
-                <h2>Research</h2>
                 <article className="cv-entry">
-                  <h3>Human-Technology Interaction</h3>
+                  <div className="cv-entry-meta">
+                    <h3>UX / Service Design Consultant</h3>
+                    <span>2017 — 2021</span>
+                  </div>
+                  <p className="cv-organization">Headsted, Konvos &amp; others</p>
+                  <p>User testing and concept validation for early-stage wellness and behavior-change products.</p>
+                </article>
+                <article className="cv-entry">
+                  <div className="cv-entry-meta">
+                    <h3>UX Researcher</h3>
+                    <span>2016 — 2019</span>
+                  </div>
                   <p className="cv-organization">Tampere University</p>
-                  <p>Research across usability and cognitive accessibility.</p>
+                  <p>Published research on UX and storytelling in immersive VR.</p>
                 </article>
               </section>
 
               <section className="cv-section">
                 <h2>Selected work</h2>
                 <article className="cv-entry">
-                  <h3>Brand Architecture</h3>
-                  <p>Developed high-end brand concepts blending sensory restraint with high visual polish.</p>
+                  <h3>Google Workspace integration</h3>
+                  <p>
+                    Design lead, 2024. Let admins import users from Google, unblocking subscription renewals
+                    for top customers. 90% first-try success rate.
+                  </p>
+                </article>
+                <article className="cv-entry">
+                  <h3>Onboarding</h3>
+                  <p>
+                    Raised activation to 31% (industry average 15%) and lifted top-item clicks 60% in a
+                    welcome-page A/B test.
+                  </p>
+                </article>
+                <article className="cv-entry">
+                  <h3>Live Showroom sandbox</h3>
+                  <p>Led service design of a product demo environment now used by Marketing and Sales.</p>
+                </article>
+              </section>
+
+              <section className="cv-section">
+                <h2>Education</h2>
+                <article className="cv-entry">
+                  <h3>B.Sc. Psychology (Honors), minor in Communications</h3>
+                  <p className="cv-organization">Missouri State University</p>
+                  <p>Also: M.Sc. Human-Technology Interaction coursework, Tampere University; Product-Led Growth certificate, ProductLed.</p>
                 </article>
               </section>
 
               <section className="cv-section">
                 <h2>Expertise</h2>
-                <p className="cv-skills">UX Architecture <span>·</span> Design Systems <span>·</span> AI-Native Prototyping <span>·</span> Servicing UX</p>
+                <p className="cv-skills">Design Systems <span>·</span> User Research <span>·</span> Onboarding &amp; PLG <span>·</span> AI-Assisted Prototyping <span>·</span> Service Design</p>
               </section>
             </div>
 
