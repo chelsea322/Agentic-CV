@@ -14,7 +14,7 @@ const PROMPT_SUGGESTIONS = [
 type Mode = 'agent' | 'cv'
 
 export default function HybridCVPage() {
-  const { messages, input, handleInputChange, handleSubmit, append, status } = useChat()
+  const { messages, input, handleInputChange, handleSubmit, append, status, error } = useChat()
   const [mode, setMode] = useState<Mode>('agent')
   const [modeReady, setModeReady] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -185,6 +185,12 @@ export default function HybridCVPage() {
                     Explore product design, systems, and the thinking behind the work.
                   </p>
                 </div>
+              )}
+
+              {error && (
+                <p className="composer-note" role="alert">
+                  Something went wrong. Please try again, or email me directly.
+                </p>
               )}
 
               <div className="composer-controls reveal" style={{ '--reveal-delay': '700ms' } as React.CSSProperties}>
