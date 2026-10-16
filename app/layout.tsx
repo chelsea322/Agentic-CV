@@ -1,5 +1,5 @@
-import type { Metadata } from 'next'
-import { Geist_Mono, Instrument_Serif, Inter_Tight } from 'next/font/google'
+import type { Metadata, Viewport } from 'next'
+import { Instrument_Serif, Manrope } from 'next/font/google'
 import './global.css'
 
 const display = Instrument_Serif({
@@ -9,20 +9,25 @@ const display = Instrument_Serif({
   variable: '--font-display',
 })
 
-const sans = Inter_Tight({
+const sans = Manrope({
   subsets: ['latin'],
   variable: '--font-sans',
 })
 
-const mono = Geist_Mono({
-  subsets: ['latin'],
-  variable: '--font-mono',
-})
-
 export const metadata: Metadata = {
-  title: 'Chelsea Kelling — Agentic CV',
-  description: 'Interactive AI Persona & Executive Brief',
+  title: 'Chelsea Kelling · Agentic CV',
+  description: 'Chat with an AI version of Chelsea Kelling, Senior Product Designer, or browse her CV.',
 }
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: dark)', color: '#0b0a1c' },
+    { media: '(prefers-color-scheme: light)', color: '#f5f1fb' },
+  ],
+}
+
+// Runs before first paint so the saved (or system) theme never flashes.
+const THEME_SCRIPT = `try{var t=localStorage.getItem('cv-theme');if(t!=='light'&&t!=='dark'){t=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'}document.documentElement.dataset.theme=t}catch(e){document.documentElement.dataset.theme='dark'}`
 
 export default function RootLayout({
   children,
@@ -30,10 +35,16 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${display.variable} ${sans.variable} ${mono.variable}`}>
-      <body className="antialiased">
-        {children}
-      </body>
+    <html
+      lang="en"
+      data-theme="dark"
+      suppressHydrationWarning
+      className={`${display.variable} ${sans.variable}`}
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
+      <body className="antialiased">{children}</body>
     </html>
   )
 }
