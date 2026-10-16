@@ -4,7 +4,7 @@ import { SYSTEM_PROMPT } from '../../../data/cv-context'
 
 const MAX_MESSAGES = 20
 const MAX_MESSAGE_LENGTH = 1000
-const MAX_OUTPUT_TOKENS = 500
+const MAX_OUTPUT_TOKENS = 300
 
 export async function POST(req: Request) {
   let body: unknown
