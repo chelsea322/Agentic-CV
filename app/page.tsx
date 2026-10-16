@@ -3,22 +3,43 @@
 import { useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { useChat } from '@ai-sdk/react'
+import AuroraBackground from './components/AuroraBackground'
+import CvView from './components/CvView'
 
 const PROMPT_SUGGESTIONS = [
-  "How did Chelsea transform UX culture at Miradore?",
-  "What is her exact AI prototyping workflow?",
-  "How does she handle design tokens and code?",
-  "What is her background in research and systems?",
+  'How did you transform UX culture at Miradore?',
+  'What is your AI prototyping workflow?',
+  'How do you handle design tokens and code?',
+  'What is your background in research and systems?',
+  'Where are you still growing for a role like this?',
 ]
 
 type Mode = 'agent' | 'cv'
+type Theme = 'dark' | 'light'
+
+// Storage can throw (private windows, blocked cookies): never let it break the page.
+const readStorage = (key: string) => {
+  try {
+    return window.localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+const writeStorage = (key: string, value: string) => {
+  try {
+    window.localStorage.setItem(key, value)
+  } catch {}
+}
+
+const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 export default function HybridCVPage() {
   const { messages, input, handleInputChange, handleSubmit, append, status, error } = useChat()
   const [mode, setMode] = useState<Mode>('agent')
   const [modeReady, setModeReady] = useState(false)
+  const [theme, setTheme] = useState<Theme>('dark')
   const [showSuggestions, setShowSuggestions] = useState(false)
-  const shellRef = useRef<HTMLDivElement>(null)
+  const [sent, setSent] = useState(false)
   const stageRef = useRef<HTMLElement>(null)
 
   const isStreaming = status === 'streaming'
@@ -26,46 +47,71 @@ export default function HybridCVPage() {
   const lastMessage = messages[messages.length - 1]
 
   useEffect(() => {
-    const savedMode = window.localStorage.getItem('cv-view-mode')
+    const savedMode = readStorage('cv-view-mode')
     if (savedMode === 'agent' || savedMode === 'cv') setMode(savedMode)
+    setTheme(document.documentElement.dataset.theme === 'light' ? 'light' : 'dark')
     setModeReady(true)
   }, [])
 
   useEffect(() => {
-    if (modeReady) window.localStorage.setItem('cv-view-mode', mode)
+    if (modeReady) writeStorage('cv-view-mode', mode)
   }, [mode, modeReady])
 
-  // Flashlight: a soft pool of light follows the pointer (fine pointers only).
+  // Bring each new message into view (the composer stays pinned below it).
   useEffect(() => {
-    const shell = shellRef.current
-    if (!shell) return
-    if (!window.matchMedia('(pointer: fine)').matches) return
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (messages.length === 0) return
+    window.scrollTo({ top: document.body.scrollHeight, behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
+  }, [messages.length])
 
-    let frame = 0
-    const onMove = (event: PointerEvent) => {
-      cancelAnimationFrame(frame)
-      frame = requestAnimationFrame(() => {
-        shell.style.setProperty('--mx', `${event.clientX}px`)
-        shell.style.setProperty('--my', `${event.clientY}px`)
-        shell.dataset.lit = 'true'
-      })
+  // Follow the system theme until the visitor makes an explicit choice.
+  useEffect(() => {
+    const query = window.matchMedia('(prefers-color-scheme: light)')
+    const onChange = (event: MediaQueryListEvent) => {
+      if (readStorage('cv-theme')) return
+      const next: Theme = event.matches ? 'light' : 'dark'
+      document.documentElement.dataset.theme = next
+      setTheme(next)
     }
-
-    window.addEventListener('pointermove', onMove, { passive: true })
-    return () => {
-      cancelAnimationFrame(frame)
-      window.removeEventListener('pointermove', onMove)
-    }
+    query.addEventListener('change', onChange)
+    return () => query.removeEventListener('change', onChange)
   }, [])
 
-  // Iris wipe: the next view opens from the toggle, like an old film cut.
+  // Theme change: a soft bloom of the new palette spreads from the toggle.
+  const switchTheme = (origin: HTMLElement) => {
+    const next: Theme = theme === 'dark' ? 'light' : 'dark'
+    const apply = () => {
+      document.documentElement.dataset.theme = next
+      writeStorage('cv-theme', next)
+      setTheme(next)
+    }
+
+    if (!document.startViewTransition || prefersReducedMotion()) {
+      apply()
+      return
+    }
+
+    const box = origin.getBoundingClientRect()
+    const x = box.left + box.width / 2
+    const y = box.top + box.height / 2
+    const radius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y))
+    const root = document.documentElement
+    root.style.setProperty('--bloom-x', `${x}px`)
+    root.style.setProperty('--bloom-y', `${y}px`)
+    root.style.setProperty('--bloom-r', `${radius}px`)
+    root.classList.add('is-bloom')
+
+    const transition = document.startViewTransition(() => {
+      flushSync(apply)
+    })
+    transition.finished.finally(() => root.classList.remove('is-bloom'))
+  }
+
+  // Iris: the next view opens outward from the control that asked for it.
   const switchMode = (next: Mode, origin: HTMLElement) => {
     if (next === mode) return
 
     const stage = stageRef.current
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (!stage || !document.startViewTransition || reduceMotion) {
+    if (!stage || !document.startViewTransition || prefersReducedMotion()) {
       setMode(next)
       return
     }
@@ -92,62 +138,93 @@ export default function HybridCVPage() {
     transition.finished.finally(() => root.classList.remove('is-iris'))
   }
 
+  const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    if (input.trim()) {
+      setSent(true)
+      window.setTimeout(() => setSent(false), 900)
+    }
+    handleSubmit(event)
+  }
+
+  const askFromCv = (question: string, origin: HTMLElement) => {
+    switchMode('agent', origin)
+    append({ role: 'user', content: question })
+  }
+
   return (
     <div
-      ref={shellRef}
       className={`site-shell ${modeReady ? 'is-ready' : ''}`}
       data-mode={mode}
       aria-busy={!modeReady}
     >
+      <a className="skip-link" href="#top">Skip to content</a>
+
       <div className="atmosphere" aria-hidden="true">
-        <span className="atmosphere-blinds" />
-        <span className="atmosphere-smoke" />
-        <span className="atmosphere-flashlight" />
-        <span className="atmosphere-vignette" />
+        <span className="atmosphere-base" />
+        <AuroraBackground />
+        <span className="atmosphere-veil" />
       </div>
 
       <header className="site-header">
         <a className="identity-mark" href="#top" aria-label="Chelsea Kelling, home">
           <span className="identity-monogram" aria-hidden="true">CK</span>
-          <span>CHELSEA KELLING</span>
+          <span className="identity-name">Chelsea Kelling</span>
         </a>
 
-        <div className="mode-switch" role="group" aria-label="Choose view" data-mode={mode}>
-          <span className="mode-switch-indicator" aria-hidden="true" />
+        <div className="header-controls">
+          <div className="mode-switch" role="group" aria-label="Choose view" data-mode={mode}>
+            <span className="mode-switch-indicator" aria-hidden="true" />
+            <button
+              type="button"
+              aria-pressed={mode === 'agent'}
+              onClick={(event) => switchMode('agent', event.currentTarget)}
+            >
+              Chat
+            </button>
+            <button
+              type="button"
+              aria-pressed={mode === 'cv'}
+              onClick={(event) => switchMode('cv', event.currentTarget)}
+            >
+              CV
+            </button>
+          </div>
+
           <button
             type="button"
-            aria-pressed={mode === 'agent'}
-            onClick={(event) => switchMode('agent', event.currentTarget)}
+            className="theme-toggle"
+            data-theme-state={theme}
+            aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            onClick={(event) => switchTheme(event.currentTarget)}
           >
-            Agent
-          </button>
-          <button
-            type="button"
-            aria-pressed={mode === 'cv'}
-            onClick={(event) => switchMode('cv', event.currentTarget)}
-          >
-            CV
+            <svg className="icon-moon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />
+            </svg>
+            <svg className="icon-sun" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4" />
+            </svg>
           </button>
         </div>
       </header>
 
-      <main id="top" ref={stageRef} className="mode-stage">
+      <main id="top" ref={stageRef} className="mode-stage" tabIndex={-1}>
         <section
           className={`mode-view agent-view ${mode === 'agent' ? 'is-active' : 'is-inactive'}`}
-          aria-label="Ask Chelsea's AI agent"
+          aria-label="Chat with an AI version of Chelsea"
           aria-hidden={mode !== 'agent'}
           inert={mode !== 'agent'}
         >
           <div className={`agent-layout ${messages.length ? 'has-messages' : ''}`}>
             {messages.length > 0 && (
-              <div className="chat-history" aria-live="polite">
+              <div className="chat-history" role="log" aria-label="Conversation" aria-busy={isStreaming || isWaiting}>
                 {messages.map((message) => (
                   <article
                     key={message.id}
                     className={`chat-message ${message.role === 'user' ? 'from-user' : 'from-agent'}`}
                   >
                     <span className="message-author">
-                      {message.role === 'user' ? 'YOU' : 'CHELSEA / AI'}
+                      {message.role === 'user' ? 'You' : 'Chelsea (AI)'}
                     </span>
                     <div className="message-content">
                       {message.content}
@@ -159,9 +236,12 @@ export default function HybridCVPage() {
                 ))}
 
                 {isWaiting && (
-                  <article className="chat-message from-agent is-pending" aria-hidden="true">
-                    <span className="message-author">CHELSEA / AI</span>
-                    <div className="message-content"><span className="stream-caret" /></div>
+                  <article className="chat-message from-agent is-pending">
+                    <span className="message-author">Chelsea (AI)</span>
+                    <div className="message-content" role="status">
+                      <span className="typing-dots" aria-hidden="true"><i /><i /><i /></span>
+                      <span className="sr-only">Chelsea is typing</span>
+                    </div>
                   </article>
                 )}
               </div>
@@ -171,7 +251,7 @@ export default function HybridCVPage() {
               {messages.length === 0 && (
                 <div className="agent-intro">
                   <p className="eyebrow reveal" style={{ '--reveal-delay': '80ms' } as React.CSSProperties}>
-                    A CONVERSATION WITH CHELSEA KELLING
+                    An AI version of Chelsea Kelling
                   </p>
                   <h1>
                     <span className="reveal-line" style={{ '--reveal-delay': '220ms' } as React.CSSProperties}>
@@ -182,13 +262,13 @@ export default function HybridCVPage() {
                     </span>
                   </h1>
                   <p className="intro-description reveal" style={{ '--reveal-delay': '560ms' } as React.CSSProperties}>
-                    Explore product design, systems, and the thinking behind the work.
+                    Ask me about product design, systems, and the thinking behind the work.
                   </p>
                 </div>
               )}
 
               {error && (
-                <p className="composer-note" role="alert">
+                <p className="composer-note is-error" role="alert">
                   Something went wrong. Please try again, or email me directly.
                 </p>
               )}
@@ -198,45 +278,54 @@ export default function HybridCVPage() {
                   className="suggestion-toggle"
                   type="button"
                   aria-expanded={showSuggestions}
+                  aria-controls="suggestion-list"
                   onClick={() => setShowSuggestions((isOpen) => !isOpen)}
                 >
-                  <span className="suggestion-toggle-mark" aria-hidden="true">{showSuggestions ? '−' : '+'}</span>
+                  <span className="suggestion-toggle-mark" aria-hidden="true" />
                   {showSuggestions ? 'Close suggested questions' : 'A few places to begin'}
                 </button>
 
                 <div
+                  id="suggestion-list"
                   className={`suggestion-list ${showSuggestions ? 'is-open' : ''}`}
-                  aria-hidden={!showSuggestions}
                   inert={!showSuggestions}
                 >
-                  {PROMPT_SUGGESTIONS.map((suggestion, index) => (
-                    <button
-                      key={suggestion}
-                      type="button"
-                      tabIndex={showSuggestions ? 0 : -1}
-                      onClick={() => {
-                        append({ role: 'user', content: suggestion })
-                        setShowSuggestions(false)
-                      }}
-                    >
-                      <span className="suggestion-index" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
-                      {suggestion}
-                    </button>
-                  ))}
+                  <div className="suggestion-list-inner">
+                    {PROMPT_SUGGESTIONS.map((suggestion, index) => (
+                      <button
+                        key={suggestion}
+                        type="button"
+                        style={{ '--i': index } as React.CSSProperties}
+                        onClick={() => {
+                          append({ role: 'user', content: suggestion })
+                          setShowSuggestions(false)
+                        }}
+                      >
+                        <span className="suggestion-index" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="prompt-form">
-                  <label className="sr-only" htmlFor="agent-prompt">Ask about Chelsea's experience</label>
+                <form onSubmit={onSubmit} className={`prompt-form ${sent ? 'is-sent' : ''}`}>
+                  <label className="sr-only" htmlFor="agent-prompt">Ask me a question</label>
                   <input
                     id="agent-prompt"
                     value={input}
                     onChange={handleInputChange}
-                    placeholder="Ask about experience, process, or perspective..."
+                    placeholder="Ask me about my work…"
                     autoComplete="off"
+                    maxLength={1000}
                   />
-                  <button type="submit" aria-label="Send question">SEND <span aria-hidden="true">↗</span></button>
+                  <button type="submit" aria-label="Send question">
+                    <span className="send-label">Send</span>
+                    <span className="send-arrow" aria-hidden="true">↗</span>
+                  </button>
                 </form>
-                <p className="composer-note">Thoughtful answers, grounded in real experience.</p>
+                <p className="composer-note">
+                  I’m an AI version of Chelsea, grounded in my real CV and portfolio. For anything beyond it, email me.
+                </p>
               </div>
             </div>
           </div>
@@ -248,110 +337,7 @@ export default function HybridCVPage() {
           aria-hidden={mode !== 'cv'}
           inert={mode !== 'cv'}
         >
-          <div className="cv-document">
-            <div className="cv-heading">
-              <div>
-                <p className="eyebrow">CURRICULUM VITAE</p>
-                <h1>Chelsea Kelling</h1>
-                <p className="cv-role">Senior Product Designer</p>
-              </div>
-              <a className="cv-contact" href="mailto:c.lou.kelling@gmail.com">Get in touch <span aria-hidden="true">↗</span></a>
-            </div>
-
-            <div className="cv-summary">
-              <p>
-                Product designer with 9+ years of experience and a background in psychology. At my best in
-                small teams where I pair with engineers, test with real users, and shape the product directly.
-                Focused on design systems, onboarding, and AI-assisted prototyping.
-              </p>
-              <span>TAMPERE, FINLAND · REMOTE</span>
-            </div>
-
-            <div className="cv-sections">
-              <section className="cv-section">
-                <h2>Experience</h2>
-                <article className="cv-entry">
-                  <div className="cv-entry-meta">
-                    <h3>Senior Product Designer</h3>
-                    <span>2023 — Present</span>
-                  </div>
-                  <p className="cv-organization">GoTo (Miradore acquisition)</p>
-                  <p>
-                    Designing new features from first concept to shipped. Leading native MDM enrollment flows,
-                    a large cross-product initiative, while integrating AI and expanding the design system.
-                  </p>
-                </article>
-                <article className="cv-entry">
-                  <div className="cv-entry-meta">
-                    <h3>Lead UX Designer</h3>
-                    <span>2021 — 2022</span>
-                  </div>
-                  <p className="cv-organization">Miradore</p>
-                  <p>
-                    First designer in the company. Built UX practices, research frameworks, and design
-                    processes from the ground up, and optimized onboarding for product-led growth.
-                  </p>
-                </article>
-                <article className="cv-entry">
-                  <div className="cv-entry-meta">
-                    <h3>UX / Service Design Consultant</h3>
-                    <span>2017 — 2021</span>
-                  </div>
-                  <p className="cv-organization">Headsted, Konvos &amp; others</p>
-                  <p>User testing and concept validation for early-stage wellness and behavior-change products.</p>
-                </article>
-                <article className="cv-entry">
-                  <div className="cv-entry-meta">
-                    <h3>UX Researcher</h3>
-                    <span>2016 — 2019</span>
-                  </div>
-                  <p className="cv-organization">Tampere University</p>
-                  <p>Published research on UX and storytelling in immersive VR.</p>
-                </article>
-              </section>
-
-              <section className="cv-section">
-                <h2>Selected work</h2>
-                <article className="cv-entry">
-                  <h3>Google Workspace integration</h3>
-                  <p>
-                    Design lead, 2024. Let admins import users from Google, unblocking subscription renewals
-                    for top customers. 90% first-try success rate.
-                  </p>
-                </article>
-                <article className="cv-entry">
-                  <h3>Onboarding</h3>
-                  <p>
-                    Raised activation to 31% (industry average 15%) and lifted top-item clicks 60% in a
-                    welcome-page A/B test.
-                  </p>
-                </article>
-                <article className="cv-entry">
-                  <h3>Live Showroom sandbox</h3>
-                  <p>Led service design of a product demo environment now used by Marketing and Sales.</p>
-                </article>
-              </section>
-
-              <section className="cv-section">
-                <h2>Education</h2>
-                <article className="cv-entry">
-                  <h3>B.Sc. Psychology (Honors), minor in Communications</h3>
-                  <p className="cv-organization">Missouri State University</p>
-                  <p>Also: M.Sc. Human-Technology Interaction coursework, Tampere University; Product-Led Growth certificate, ProductLed.</p>
-                </article>
-              </section>
-
-              <section className="cv-section">
-                <h2>Expertise</h2>
-                <p className="cv-skills">Design Systems <span>·</span> User Research <span>·</span> Onboarding &amp; PLG <span>·</span> AI-Assisted Prototyping <span>·</span> Service Design</p>
-              </section>
-            </div>
-
-            <footer className="cv-footer">
-              <span>CHELSEA KELLING</span>
-              <a href="mailto:c.lou.kelling@gmail.com">C.LOU.KELLING@GMAIL.COM</a>
-            </footer>
-          </div>
+          <CvView onAsk={askFromCv} />
         </section>
       </main>
     </div>
